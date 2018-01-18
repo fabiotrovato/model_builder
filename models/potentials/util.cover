@@ -1,0 +1,13 @@
+    1: import warnings
+       
+    1: def interaction_exists_warning(pot):
+           warnings.warn("Interaction already exists! skipping: {}".format(pot.describe()))
+       
+    1: def default_sbm_parameters_warning():
+    1:     warnings.warn("Using default SBM parameters")
+       
+    1: def default_sbm_potentials_warning():
+    1:     warnings.warn("Using default SBM parameters")
+       
+    1: def missing_reference_warning():
+           warnings.warn("Need to set reference structure model.set_reference()")

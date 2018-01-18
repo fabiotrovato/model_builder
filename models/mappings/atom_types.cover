@@ -1,0 +1,83 @@
+    1: """ Contains Class for making CG Atoms and related Properties"""
+       
+    1: import numpy as np
+       
+    2: class CoarseGrainAtom(object):
+    1:     """ Class for making a CG atom and storing its properties """
+    1:     def __init__(self, index, name, residx, resname, radius, mass, charge):
+   66:         self.index = index
+   66:         self.name = name
+   66:         self.residx = residx
+   66:         self.resname = resname
+   66:         self.radius = radius
+   66:         self.mass = mass
+   66:         self.charge = charge
+   66:         self.ptype = "A"    # Atom (not virtual site)
+       
+               # Lennard-Jones parameters
+   66:         self.c6 = 0
+   66:         self.c12 = (self.radius)**12
+       
+    1:     def describe(self):
+               return "<model_builder.CoarseGrainAtom {} {} {} {}>".format(
+                       self.name, self.radius, self.mass, self.charge)
+       
+       ##
+       # coding=utf-8
+       """ Useful values for properties of a CG atom """
+       
+       """Masses in atomic mass units"""
+    1: residue_mass = {'ALA':   89.0935, 'ARG':  174.2017, 'ASN':  132.1184,
+    1:                 'ASP':  133.1032, 'CYS':  121.1590, 'GLN':  146.1451,
+    1:                 'GLU':  147.1299, 'GLY':   75.0669, 'HIS':  155.1552,
+    1:                 'ILE':  131.1736, 'LEU':  131.1736, 'LYS':  146.1882,
+    1:                 'MET':  149.2124, 'PHE':  165.1900, 'PRO':  115.1310,
+    1:                 'SER':  105.0930, 'THR':  119.1197, 'TRP':  204.2262,
+    1:                 'TYR':  181.1894, 'VAL':  117.1469, 'SOL':   18.0150}
+       
+       """Converting from three letter code to one letter FASTA code."""
+    1: residue_code = {'ALA': 'A', 'ARG': 'R', 'ASN': 'N',
+    1:                 'ASP': 'D', 'CYS': 'C', 'GLN': 'Q',
+    1:                 'GLU': 'E', 'GLY': 'G', 'HIS': 'H',
+    1:                 'ILE': 'I', 'LEU': 'L', 'LYS': 'K',
+    1:                 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
+    1:                 'SER': 'S', 'THR': 'T', 'TRP': 'W',
+    1:                 'TYR': 'Y', 'VAL': 'V'}
+       
+    1: resnames_alpha = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 
+    1:                   'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 
+    1:                   'LEU', 'LYS', 'MET', 'PHE', 'PRO', 
+    1:                   'SER', 'THR', 'TRP', 'TYR', 'VAL']
+       
+    1: residue_code_1_to_3 = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP',
+    1:                      'E': 'GLU', 'F': 'PHE', 'G': 'GLY',
+    1:                      'H': 'HIS', 'I': 'ILE', 'K': 'LYS',
+    1:                      'L': 'LEU', 'M': 'MET', 'N': 'ASN',
+    1:                      'P': 'PRO', 'Q': 'GLN', 'R': 'ARG',
+    1:                      'S': 'SER', 'T': 'THR', 'V': 'VAL',
+    1:                      'W': 'TRP', 'Y': 'TYR'}
+       
+       """Source: Partial molar volumes of proteins: amino acid side-chain
+       contributions derived from the partial molar volumes of some tripeptide
+       Atomic radii in nanometers"""
+    1: residue_radii = {'ALA': 0.1844827, 'ARG': 0.3134491, 'ASN': 0.2477519,
+    1:                 'ASP': 0.2334602, 'CYS': 0.2276212, 'GLN': 0.2733978,
+    1:                 'GLU': 0.2639170, 'GLY': 0.0000000, 'HIS': 0.2835556,
+    1:                 'ILE': 0.2889931, 'LEU': 0.2887070, 'LYS': 0.2937731,
+    1:                 'MET': 0.2916368, 'PHE': 0.3140150, 'PRO': 0.2419109,
+    1:                 'SER': 0.1936102, 'THR': 0.2376198, 'TRP': 0.3422321,
+    1:                 'TYR': 0.3168939, 'VAL': 0.2619603, 'AVERAGE': 0.2683678}
+       
+       """use this effective interaction distance to be in line with the sizes 
+       from the Cheung, Finke, Callahan, Onuchic, JPhysChemB 2003 paper"""
+   23: residue_cacb_effective_interaction = {key:residue_radii[key]*1.4 for key in residue_radii} 
+       
+    1: residues_alpha = ['ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN',
+    1:                   'GLU', 'GLY', 'HIS', 'ILE', 'LEU', 'LYS',
+    1:                   'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP',
+    1:                   'TYR', 'VAL']
+       
+    1: residues_hydrophobicity = ['CYS', 'MET', 'PHE', 'ILE', 'LEU',
+    1:                            'VAL', 'TRP', 'TYR', 'ALA', 'GLY',
+    1:                            'THR', 'SER', 'GLN', 'ASN', 'GLU', 
+    1:                            'ASP', 'HIS', 'ARG', 'LYS', 'PRO']

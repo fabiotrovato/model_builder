@@ -1,0 +1,45 @@
+    1: import numpy as np
+       
+    1: import mappings
+    1: import potentials
+       
+    2: class Model(object):
+    1:     """Model class """
+    1:     def __init__(self, topology, bead_repr="CA"):
+    1:         self.mapping = mappings.assign_mapping(bead_repr, topology)
+    1:         self.Hamiltonian = potentials.Hamiltonian()
+       
+    1:     def describe(self):
+               #TODO: What is the best description?
+               pass
+       
+    1:     def map_traj(self, traj):
+               return self.mapping.map_traj(traj)
+       
+    1:     def save_starting_conf(self, saveas="conf.gro"):
+               self.starting_traj.save(saveas)
+       
+    1:     def set_starting_conf(self, traj):
+               self.starting_traj = traj
+       
+    1:     def add_pairs(self, pairs):
+    1:         self.mapping._add_pairs(pairs)
+       
+    1:     def assign_fitted_epsilons(self, params_to_fit_indices):
+    1:         self.params_to_fit_indices = params_to_fit_indices
+    1:         self.fitted_epsilons = []
+    1:         self.fitted_function_types = []
+  934:         for i in params_to_fit_indices:
+  933:             self.fitted_epsilons.append(self.Hamiltonian._epsilons[i])
+  933:             self.fitted_function_types.append(self.Hamiltonian._pair_function_type_labels[i])
+       
+    1:     def output_epsilons(self):
+               params = self.Hamiltonian._epsilons
+               for idx, i in enumerate(self.params_to_fit_indices):
+                   params[i] = self.fitted_epsilons[idx]
+       
+               f = open("params", "w")
+               f.write("# Fitted Parameters\n")
+               for param in params:
+                   f.write("%f\n"%param)
+               f.close()

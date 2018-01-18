@@ -1,0 +1,19 @@
+       
+       
+       
+       '''
+       To Do:
+       The structure submodule should also handle adding cofactors to the system (e.g.
+       heme).
+    1: '''
+       
+    1: from calpha import CalphaMapping
+    1: from calphacbeta import CalphaCbetaMapping
+    1: from heavyatom import HeavyAtomMapping
+    1: from awsem import AwsemMapping, AwsemBackboneMapping
+       
+    1: def assign_mapping(code, topology):
+    1:     MAPPINGS = {"CA":CalphaMapping, "CACB":CalphaCbetaMapping,
+    1:                 "All-Atom":HeavyAtomMapping, "AWSEM":AwsemMapping, 
+    1:                 "AWSEM_backbone":AwsemBackboneMapping}
+    1:     return MAPPINGS[code](topology)

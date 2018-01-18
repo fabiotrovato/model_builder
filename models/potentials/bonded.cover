@@ -1,0 +1,191 @@
+    1: """Utilities for bonded potential terms"""
+       
+    1: import numpy as np
+       
+       #############################################################################
+       # Bond potentials
+       #############################################################################
+    2: class BondPotential(object):
+       
+    1:     def __init__(self, atmi, atmj):
+   65:         self.atmi = atmi
+   65:         self.atmj = atmj
+       
+    1:     def describe(self):
+               """interaction description"""
+               return "{}:{:>12}{:>12}".format(self.prefix_label, self.atmi, self.atmj)
+       
+    1:     def __hash__(self):
+               hash_value = hash(self.prefix_label)
+               hash_value ^= hash(self.atmi)
+               hash_value ^= hash(self.atmj)
+               return hash_value
+       
+    1:     def __eq__(self, other):
+ 2080:         return self.__hash__() == other.__hash__()
+       
+       
+    2: class HarmonicBondPotential(BondPotential):
+       
+    1:     def __init__(self, atmi, atmj, kb, r0):
+   65:         BondPotential.__init__(self, atmi, atmj)
+   65:         self.prefix_label = "HARMONIC_BOND"
+   65:         self.kb = kb
+   65:         self.r0 = r0
+           
+    1:     def V(self, r):
+               return self.kb*self.dVdkb(r)
+       
+    1:     def dVdr(self, r): 
+               return self.kb*self.d2Vdrdkb(r)
+       
+    1:     def dVdkb(self, r):
+               return 0.5*(r - self.r0)**2
+       
+    1:     def d2Vdrdkb(self, r): 
+               return (r - self.r0)
+       
+    1:     def __hash__(self):
+ 4160:         return hash(frozenset(self.__dict__.iteritems()))
+       
+       ############################################################################
+       # Angle potentials
+       ############################################################################
+    2: class AnglePotential(object):
+       
+    1:     def __init__(self, atmi, atmj, atmk):
+   95:         self.atmi = atmi
+   95:         self.atmj = atmj
+   95:         self.atmk = atmk
+       
+    1:     def describe(self):
+               """interaction description"""
+               return "{}:{:>12}{:>12}{:>12}".format(
+                       self.prefix_label, self.atmi, self.atmj, self.atmk)
+       
+    1:     def __hash__(self):
+ 8930:         hash_value = hash(self.prefix_label)
+ 8930:         hash_value ^= hash(self.atmi)
+ 8930:         hash_value ^= hash(self.atmj)
+ 8930:         hash_value ^= hash(self.atmk)
+ 8930:         return hash_value
+       
+    1:     def __eq__(self, other):
+ 4465:         return self.__hash__() == other.__hash__()
+       
+    2: class HarmonicAnglePotential(AnglePotential):
+       
+    1:     def __init__(self, atmi, atmj, atmk, ka, theta0):
+   95:         AnglePotential.__init__(self, atmi, atmj, atmk)
+   95:         self.prefix_label = "HARMONIC_ANGLE"
+   95:         self.ka = ka
+   95:         self.theta0 = theta0
+       
+    1:     def V(self, theta):
+               return self.ka*self.dVdka(theta)
+       
+    1:     def dVdtheta(self, theta): 
+               return self.ka*self.d2Vdthetadka(theta)
+       
+    1:     def dVdka(self, theta):
+               return 0.5*(theta - self.theta0)**2
+       
+    1:     def d2Vdthetadka(self, theta): 
+               return (theta - self.theta0)
+       
+    1:     def __hash__(self):
+ 8930:         hash_value = AnglePotential.__hash__(self)
+ 8930:         hash_value ^= hash(self.ka)
+ 8930:         hash_value ^= hash(self.theta0)
+ 8930:         return hash_value
+       
+       ############################################################################
+       # Dihedral potentials
+       ############################################################################
+    2: class DihedralPotential(object):
+       
+    1:     def __init__(self, atmi, atmj, atmk, atml):
+   95:         self.atmi = atmi
+   95:         self.atmj = atmj
+   95:         self.atmk = atmk
+   95:         self.atml = atml
+       
+    1:     def describe(self):
+               """interaction description"""
+               return "{}:{:>12}{:>12}{:>12}{:>12}".format(
+                       self.prefix_label, self.atmi, self.atmj, self.atmk, self.atml)
+       
+    1:     def __hash__(self):
+ 8930:         hash_value = hash(self.prefix_label)
+ 8930:         hash_value ^= hash(self.atmi)
+ 8930:         hash_value ^= hash(self.atmj)
+ 8930:         hash_value ^= hash(self.atmk)
+ 8930:         hash_value ^= hash(self.atml)
+ 8930:         return hash_value
+       
+    1:     def __eq__(self, other):
+ 4465:         return self.__hash__() == other.__hash__()
+       
+    2: class HarmonicDihedralPotential(DihedralPotential):
+       
+    1:     def __init__(self, atmi, atmj, atmk, atml, kd, phi0):
+   31:         DihedralPotential.__init__(self, atmi, atmj, atmk, atml)
+   31:         self.prefix_label = "HARMONIC_DIHEDRAL"
+   31:         self.kd = kd
+   31:         self.phi0 = phi0
+       
+    1:     def V(self, phi):
+               return self.kd*self.dVdkd(phi)
+       
+    1:     def dVdphi(self, phi): 
+               return self.kd*self.d2Vdphidkd(phi)
+       
+    1:     def dVdkd(self, phi):
+               return 0.5*(phi - self.phi0)**2
+       
+    1:     def d2Vdphidkd(self, phi): 
+               return (phi - self.phi0)
+       
+    1:     def __hash__(self):
+ 2914:         hash_value = DihedralPotential.__hash__(self)
+ 2914:         hash_value ^= hash(self.prefix_label) 
+ 2914:         hash_value ^= hash(self.kd)
+ 2914:         hash_value ^= hash(self.phi0)
+ 2914:         return hash_value
+       
+    2: class CosineDihedralPotential(DihedralPotential):
+       
+    1:     def __init__(self, atmi, atmj, atmk, atml, kd, phi0, mult):
+   64:         DihedralPotential.__init__(self, atmi, atmj, atmk, atml)
+   64:         self.prefix_label = "COSINE_DIHEDRAL"
+   64:         self.kd = kd
+   64:         self.phi0 = phi0
+   64:         self.mult = mult
+       
+    1:     def V(self, phi):
+               return self.kd*self.dVdkd(phi)
+       
+    1:     def dVdphi(self, phi): 
+               return self.kd*self.d2Vdphidkd(phi)
+       
+    1:     def dVdkd(self, phi):
+               return 1. - np.cos(self.mult*(phi - self.phi0))
+       
+    1:     def d2Vdphidkd(self, phi): 
+               return self.mult*np.sin(self.mult*(phi - self.phi0))
+       
+    1:     def __hash__(self):
+ 6016:         hash_value = DihedralPotential.__hash__(self)
+ 6016:         hash_value ^= hash(self.prefix_label) 
+ 6016:         hash_value ^= hash(self.kd)
+ 6016:         hash_value ^= hash(self.phi0)
+ 6016:         hash_value ^= hash(self.mult)
+ 6016:         return hash_value
+       
+       
+    1: BOND_POTENTIALS = {"HARMONIC_BOND":HarmonicBondPotential}
+       
+    1: ANGLE_POTENTIALS = {"HARMONIC_ANGLE":HarmonicAnglePotential}
+       
+    1: DIHEDRAL_POTENTIALS = {"HARMONIC_DIHEDRAL":HarmonicDihedralPotential,
+    1:                         "COSINE_DIHEDRAL":CosineDihedralPotential}

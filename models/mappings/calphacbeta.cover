@@ -1,0 +1,245 @@
+    1: import numpy as np
+       
+    1: import mdtraj as md
+    1: from mdtraj.core.topology import Topology
+       
+    1: import util
+    1: import atom_types
+       
+    2: class CalphaCbetaMapping(object):
+    1:     """Calpha Cbeta center-of-mass representation mapping"""
+       
+    1:     def __init__(self, topology, use_chains=None):
+    1:         if use_chains is None:
+    1:             use_chains = range(len(topology._chains))
+       
+    1:         self._ref_topology = topology.copy()
+       
+               # Build new topology
+    1:         newTopology = Topology()
+    1:         new_atm_idx = 0
+    1:         res_idx = 1
+    1:         prev_ca = None
+    1:         ca_idxs = []
+    1:         self._sidechain_idxs = []
+    1:         self._sidechain_mass = []
+    1:         self._chain_indices = []
+    2:         for chain_count,chain in enumerate(topology._chains):
+    1:             if chain_count in use_chains:
+    1:                 newChain = newTopology.add_chain()
+   36:                 for residue in chain._residues:
+                           #resSeq = getattr(residue, 'resSeq', None) or residue.index
+   35:                     newResidue = newTopology.add_residue(residue.name, newChain, res_idx)
+                           # map CA
+   35:                     new_ca = newTopology.add_atom('CA', md.core.element.get_by_symbol('C'),
+   35:                                         newResidue, serial=new_atm_idx)
+   35:                     self._chain_indices.append(chain_count)
+   35:                     if prev_ca is None:
+    1:                         prev_ca = new_ca
+                           else:
+                               # only bond atoms in the same chain.
+   34:                         if new_ca.residue.chain.index == prev_ca.residue.chain.index:
+   34:                             newTopology.add_bond(prev_ca, new_ca)
+   34:                         prev_ca = new_ca
+   35:                     try:
+  101:                         ca_idxs.append([[ atm.index for atm in residue.atoms if \
+   66:                                 (atm.name == "CA") ][0], new_atm_idx ])
+                           except:
+                               print residue
+                               print chain
+                               for atm in residue.atoms:
+                                   atm.name
+                               raise
+   35:                     new_atm_idx += 1
+       
+   35:                     if residue.name == 'GLY':
+    4:                         self._sidechain_idxs.append([])
+    4:                         self._sidechain_mass.append([])
+                           else:
+                               # map CB
+   31:                         cb_name = "CB%s" % atom_types.residue_code[residue.name]
+   31:                         new_cb = newTopology.add_atom(cb_name, md.core.element.get_by_symbol('C'),
+   31:                                             newResidue, serial=new_atm_idx)
+   31:                         self._chain_indices.append(chain_count)
+       
+   31:                         newTopology.add_bond(new_cb, new_ca)
+       
+   93:                         self._sidechain_idxs.append([[ atm.index for atm in residue.atoms if \
+   62:                                     (atm.is_sidechain) and (atm.element.symbol != "H") ], new_atm_idx ])
+   93:                         self._sidechain_mass.append(np.array([ atm.element.mass for atm in residue.atoms if \
+   62:                                     (atm.is_sidechain) and (atm.element.symbol != "H") ]))
+   31:                         new_atm_idx += 1
+   35:                     res_idx += 1
+       
+    1:         self._ca_idxs = np.array(ca_idxs)
+    1:         self.topology = newTopology
+    1:         assert self.topology.n_atoms == len(self._chain_indices)
+       
+    1:     @property
+           def top(self):
+ 1868:         return self.topology
+       
+    1:     def map_traj(self, traj):
+               """Return new Trajectory object with cacb topology and xyz"""
+    1:         cacb_xyz = np.zeros((traj.n_frames, self.topology.n_atoms, 3))
+       
+   36:         for res in self.topology.residues:
+                   cacb_xyz[:,self._ca_idxs[res.index,1],:] = \
+   35:                     traj.xyz[:,self._ca_idxs[res.index,0],:]
+                   # Map sidechain atoms to their center of mass
+   35:             if res.name != 'GLY':
+   31:                 old_idxs = self._sidechain_idxs[res.index][0]
+   31:                 new_idx = self._sidechain_idxs[res.index][1]
+   31:                 sc_mass = self._sidechain_mass[res.index]
+   31:                 tot_mass = np.sum(sc_mass)
+       
+   31:                 res_frms = traj.xyz[:,old_idxs,:]
+   31:                 sc_com_xyz = np.array(map(lambda frm: \
+   62:                         np.sum(frm.T*sc_mass/tot_mass, axis=1), res_frms))
+       
+   31:                 cacb_xyz[:,new_idx,:] = sc_com_xyz
+       
+    1:         return md.Trajectory(cacb_xyz, self.topology)
+       
+    1:     def _residue_to_atom_contacts(self, residue_contacts):
+               atm_contacts = []
+               for n,k in residue_contacts:
+                   nres = self.topology.residue(n)
+                   kres = self.topology.residue(k)
+                   # Calpha-Calpha contact
+                   ca_n = nres.atom(0)
+                   ca_k = kres.atom(0)
+                   atm_contacts.append([ca_n, ca_k])
+                   if (nres.name != "GLY") and (kres.name != "GLY"):
+                       # Cbeta-Cbeta contact
+                       cb_n = nres.atom(1)
+                       cb_k = kres.atom(1)
+                       atm_contacts.append([cb_n, cb_k])
+               return atm_contacts
+       
+    1:     def _assign_sbm_angles(self):
+       
+    1:         self._angles = []
+    1:         chain_count = 0
+    2:         for chain in self.topology.chains:
+    1:             chain_count += 1
+                   # CA-CA-CA angles first
+   67:             ca_atoms = [ atom for atom in chain.atoms if atom.name == "CA" ]
+    1:             assert len(ca_atoms) == chain.n_residues
+   34:             for i in range(len(ca_atoms) - 2):
+   33:                 self._angles.append((ca_atoms[i], ca_atoms[i + 1], ca_atoms[i + 2]))
+       
+                   # CA-CA-CB and CB-CA-CA angles next
+   36:             for res_count,res in enumerate(chain.residues):
+   35:                 if res.name != "GLY":
+   31:                     ca = res.atom(0)
+   31:                     cb = res.atom(1)
+   31:                     if res_count == 0:
+                               # if terminal
+                               next_ca = chain.residue(res_count + 1).atom(0)
+                               self._angles.append((cb, ca, next_ca))
+   31:                     elif (res_count + 1) == chain.n_residues:
+                               # if terminal
+                               prev_ca = chain.residue(res_count - 1).atom(0)
+                               self._angles.append((prev_ca, ca, cb))
+                           else:
+   31:                         prev_ca = chain.residue(res_count - 1).atom(0)
+   31:                         next_ca = chain.residue(res_count + 1).atom(0)
+   31:                         self._angles.append((prev_ca, ca, cb))
+   31:                         self._angles.append((cb, ca, next_ca))
+       
+    1:     def _assign_sbm_dihedrals(self):
+       
+    1:         self._improper_dihedrals = []
+    1:         self._dihedrals = []
+    2:         for chain in self.topology.chains:
+                   #add the proper ca-ca-ca-ca dihedrals
+   67:             ca_atoms = [ atom for atom in chain.atoms if atom.name == "CA" ]
+   33:             for i in range(len(ca_atoms)-3):
+   32:                 self._dihedrals.append((ca_atoms[i], ca_atoms[i+1], ca_atoms[i+2], ca_atoms[i+3]))
+                   #add improper dihedrals
+    1:             num_residues = chain.n_residues
+   36:             for res_count,res in enumerate(chain.residues):
+   35:                 check = res_count == 0 #not first residue
+   35:                 check = check or res_count+1 == num_residues #last residue
+   35:                 check = check or res.name == "GLY" #GLY
+   35:                 if not check:
+   31:                     idx = res_count
+   31:                     cj = chain.residue(idx-1).atom(0)
+   31:                     ck = chain.residue(idx+1).atom(0)
+   31:                     dih = (res.atom(0), cj, ck, res.atom(1))
+   31:                     self._improper_dihedrals.append(dih)
+       
+    1:     def add_disulfides(self, disulfides, simple=False):
+               """ Add disulfide bonded interactions.
+       
+               Adds appropriate bond, angle and dihedral interactions.
+       
+               Args:
+                   disulfides (list): List of disulfide pairs between the
+                       residues of the disulfides.
+       
+               """
+       
+               for pair in disulfides:
+                   res1 = self.top.residue(pair[0])
+                   res2 = self.top.residue(pair[1])
+       
+                   #add c-alpha atoms
+                   ca1 = res1.atom(0)
+                   ca2 = res2.atom(0)
+                   #add c-beta
+                   cb1 = res1.atom(1)
+                   cb2 = res2.atom(1)
+       
+                   #add bond between c-beta
+                   self.top.add_bond(cb1, cb2)
+       
+                   #add angular constraints
+                   self._angles.append((ca1, cb1, cb2))
+                   self._angles.append((cb1, cb2, ca2))
+       
+                   #add dihedral constraints
+                   self._dihedrals.append((ca1, cb1, cb2, ca2))
+       
+    1:     @property
+           def n_atomtypes(self):
+               return len(self.atomtypes)
+       
+    1:     def add_atoms(self):
+    1:         self.atoms = []
+    1:         self.atomtypes = []
+    2:         for chain in self.top._chains:
+   36:             for res in chain._residues:
+   35:                 if res.name == "GLY":
+    4:                     cg_atom = atom_types.CoarseGrainAtom(res.atom(0).index, "CA",
+    4:                             res.index, res.name, 0.266, 1, 0)
+    4:                     self.atoms.append(cg_atom)
+                       else:
+   31:                     cg_atom = atom_types.CoarseGrainAtom(res.atom(0).index, "CA",
+   31:                             res.index, res.name, 0.266, 1, 0)
+   31:                     self.atoms.append(cg_atom)
+   31:                     radii = atom_types.residue_cacb_effective_interaction[res.name]
+   31:                     name = "CB%s" % atom_types.residue_code[res.name]
+   31:                     cg_atom = atom_types.CoarseGrainAtom(res.atom(1).index, name,
+   31:                             res.index, res.name, radii, 1, 0)
+   31:                     self.atoms.append(cg_atom)
+       
+   67:         for cg_atom in self.atoms:
+                   # Unique list of atom types.
+  806:             if cg_atom.name not in [ atm.name for atm in self.atomtypes ]:
+   19:                 self.atomtypes.append(cg_atom)
+       
+    1:     def _atomidx_to_atom_contacts(self, pairs):
+    1:         atm_contacts = []
+  934:         for n,k in pairs:
+  933:             natom = self.top.atom(n)
+  933:             katom = self.top.atom(k)
+  933:             atm_contacts.append([natom, katom])
+    1:         return atm_contacts
+       
+    1:     def _add_pairs(self, pairs):
+    1:         self._contact_pairs = self._atomidx_to_atom_contacts(pairs)
+       
+    1:     def _add_atomtypes(self):
+               pass
